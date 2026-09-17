@@ -18,16 +18,23 @@
         <param name="config_file" type="str" value="$(var config)"/>
     </node>
 
+    <node pkg="okvis_ros" exec="okvis_node" name="okvis_node" output="screen">
+        <remap from="/cam0/image_raw" to="/Passive/left/image_raw"/>
+        <remap from="/cam1/image_raw" to="/Passive/right/image_raw"/>
+        <remap from="/imu0" to="/mavros/imu/data"/>
+        <remap from="/sonar_data" to="/sonar_3d/pointcloud"/>
+    </node>
+
 
     <node name="okvis_node" pkg="okvis_ros" exec="okvis_node">
 
         <param name="config_filename" value="$(var config)"/>
         <param name="mesh_file" value="firefly.dae"/>
 
-        <remap from="/camera0" to="/cam0/image_raw"/>
-        <remap from="/camera1" to="/cam1/image_raw"/>
+        <remap from="/camera0" to="/Passive/left/image_raw"/>
+        <remap from="/camera1" to="/Passive/right/image_raw"/>
 
-        <remap from="/imu" to="/imu/imu"/>
+        <remap from="/imu" to="/model/bluerov2/imu"/>
 
     </node>
 
