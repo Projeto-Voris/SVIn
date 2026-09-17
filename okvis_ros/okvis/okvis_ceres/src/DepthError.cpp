@@ -45,10 +45,12 @@ namespace okvis {
 namespace ceres {
 
 // Construct with measurement, variance and LandmarkSubset.
-DepthError::DepthError(double depth, const information_t& information, double first_depth) {
+DepthError::DepthError(double depth, const information_t& information, double first_depth, const okvis::kinematics::Transformation& T_SD)
+    : T_SD_(T_SD) {
   // LOG(INFO) << "DepthError initialization";
   setMeasurement(depth, first_depth);
   setInformation(information);
+  setTransformation(T_SD);
 }
 
 void DepthError::setInformation(const information_t& information) {
@@ -58,6 +60,10 @@ void DepthError::setInformation(const information_t& information) {
   // Eigen::LLT<information_t> lltOfInformation(information_);
   // TODO(Sharmin): Check if it's correct
   _squareRootInformation = sqrt(information);
+}
+
+void DepthError::setTransformation(const okvis::kinematics::Transformation& T_SD) {
+  T_SD_ = T_SD;
 }
 
 // This evaluates the error term and additionally computes the Jacobians.
@@ -75,35 +81,17 @@ bool DepthError::EvaluateWithMinimalJacobians(double const* const* parameters,
       Eigen::Vector3d(parameters[0][0], parameters[0][1], parameters[0][2]),
       Eigen::Quaterniond(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]));
 
-  // For Stereo Rig V2
-  okvis::kinematics::Transformation T_SD(Eigen::Vector3d(-0.019, 0.032, -0.282),
-                                         Eigen::Quaterniond(-0.500, 0.500, 0.500, 0.500));
-  // Transforming World frame to Depth frame. So that, in current W-frame is aligned with depth direction(=Gravity
-  // direction).
-  okvis::kinematics::Transformation T_WD = T_WS * T_SD;
-  // Eigen::Vector4d depthPointW = T_WD * Eigen::Vector4d(0, 0, -1*depth_+ first_depth_, 1.0);
-  Eigen::Vector3d T_DW = T_WD.inverse().r();
-
-  // std::cout<<"T_WD: "<<T_WD.coeffs()<<std::endl;
-
   // compute error
   double error = 0.0;
-  // Initial Displacement between depth and world frame
-  double displacement = 0.032;
 
-  // error = (T_DW[2] + displacement) - (-1*depth_+ first_depth_);
-  // error = T_DW[2] - (-1*depth_+ first_depth_);
-  // error = parameters[0][2] - depthPointW[2]/depthPointW[3];
+  // Example: first_depth = 5, current_depth = 10, parameters[0][2] = -5, error = -5 - (5-10)
   error = parameters[0][2] - (-1 * depth_ + first_depth_);
 
-  /*
-  std::cout<< "Z value in Depth frame: " << T_DW[2]<< std::endl;
-  //std::cout<< "Z value in world frame: " << T_WD[2]<< std::endl;
-  std::cout<< "Depth sensor: "<< -1*depth_+ first_depth_<< std::endl;
-
-
-  std::cout<< " Depth Error:  " << error<< std::endl;
-  */
+  // LOG(INFO) << std::fixed << std::setprecision(3)
+  //           << " DepthError: parameters[0][2]: " << parameters[0][2]
+  //           << " \n depth_: " << depth_ 
+  //           << " \n first_depth_: " << first_depth_
+  //           << " \n error: parameters[0][2] - (-1 * depth_ + first_depth_) = " << error;  
 
   // weight:
   double weighted_error = _squareRootInformation * error;
@@ -114,13 +102,31 @@ bool DepthError::EvaluateWithMinimalJacobians(double const* const* parameters,
   // compute Jacobian...
   if (jacobians != NULL) {
     if (jacobians[0] != NULL) {
-      // jacobians[0][0] = 1;
 
       Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor> > J0(jacobians[0]);
       Eigen::Matrix<double, 1, 7, Eigen::RowMajor> J0_minimal;
       J0_minimal.setZero();
-      J0_minimal(0, 2) = 1;
 
+      Eigen::Vector3d e3(0.0, 0.0, 1.0);  // Unit vector along z-axis
+
+      // Position Jacobian ∂e/∂p = e₃ᵀ = [0, 0, 1]
+      J0_minimal.block<1,3>(0,0) = e3.transpose();  // [0, 0, 1, ...]
+
+      // Rotation Jacobian: ∂e/∂θ = e₃ᵀ·R_ItoW·[p_DinI×]
+      // Eigen::Vector3d p_IinD = T_SD_.r();
+      // Eigen::Vector3d p_DinI = T_SD_.C().transpose() * (-1 * p_IinD);
+      // Eigen::Matrix3d R_ItoW = T_WS.C().transpose();
+      // Skew-symmetric matrix [p_DinI]×
+      // Eigen::Matrix3d p_DinI_skew;
+      // p_DinI_skew <<        0,      -p_DinI(2),  p_DinI(1),
+      //                p_DinI(2),            0,   -p_DinI(0),
+      //               -p_DinI(1),     p_DinI(0),           0;
+
+      // Compute rotation Jacobian
+      // Eigen::RowVector3d J_rotation = e3.transpose() * R_ItoW * p_DinI_skew;
+      // J0_minimal.block<1,3>(0,3) = J_rotation;  // [..., J_θx, J_θy, J_θz, 0]
+
+      // Apply information weighting
       J0_minimal = (_squareRootInformation * J0_minimal).eval();
 
       // hallucinate Jacobian w.r.t. state

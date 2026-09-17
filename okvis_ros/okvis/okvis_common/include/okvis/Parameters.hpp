@@ -60,6 +60,8 @@ namespace okvis {
 struct SensorList {
   bool isSonarUsed;
   bool isDepthUsed;
+  bool isDVLUsed;
+  bool is3DSonarOdomUsed;
 };
 
 // Sharmin: Read from config file.
@@ -188,6 +190,45 @@ struct SonarParameters {
   // Eigen::Vector3d sonarSensorOffset; ///< The position offset of the sonar sensor in body (B) coordinates.
   // bool isLeveled; ///< If true, the position sensor measurements are assumed to be world z up (exactly, i.e. only yaw
   // gets estimated).
+};
+
+/*!
+ * \brief Depth sensor parameters.
+ *
+ * A simple struct to specify properties of a depth sensor.
+ *
+ */
+struct DepthSensorParameters {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  okvis::kinematics::Transformation T_SD;  ///< Transformation from IMU frame (IMU frame S) to Depth sensor (Depth frame D).
+  double sigma_depth;   ///< Standard deviation of depth measurement [m].
+  double depth_scaling; ///< Scaling factor to convert fresh water depth to salt water depth (h_s = scale * h_f).
+};
+
+/*!
+ * \brief DVL sensor parameters.
+ *
+ * A simple struct to specify properties of a dvl sensor.
+ *
+ */
+struct DVLSensorParameters {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  okvis::kinematics::Transformation T_SV;  ///< Transformation from IMU frame (IMU frame S) to DVL sensor (DVL frame V).
+  double noise_multiplier;  ///< Covariance scaling factor (multiplied with topic covariance). Lower = more weight to DVL.
+  double time_threshold;  ///< Maximum time difference between frame and DVL measurement [s]. Drop if exceeds threshold.
+};
+
+/*!
+ * \brief 3D Sonar Odom sensor parameters.
+ *
+ * A simple struct to specify properties of a 3D sonar odom sensor.
+ *
+ */
+struct ThreeDSonarOdomParameters{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  okvis::kinematics::Transformation T_SL;  ///< Transformation from IMU frame (IMU frame S) to 3D Sonar (3D Sonar frame 3D).
+  double sigma_position; ///< Standard deviation of position measurement [m].
+  double sigma_orientation; ///< Standard deviation of orientation measurement [rad].
 };
 
 /*!
@@ -357,6 +398,9 @@ struct VioParameters {
   HistogramParams histogramParams;                    ///< Sharmin: CLAHE Parameters
   MiscParams miscParams;                ///< Sharmin: contains misc parameters, e.g. opencv image resize factor
   SonarParameters sonar;                ///< Sharmin: sonar parameters (T_SSo)
+  DepthSensorParameters depth;          ///< Depth sensor parameters (T_SD)
+  DVLSensorParameters dvl;              ///< DVL sensor parameters (T_SV)
+  ThreeDSonarOdomParameters threeDsonarOdom; ///< 3D Sonar Odom parameters (T_SL)
   ResetPoseParameters resetableParams;  ///< Hunter: Reset pose parameters
 };
 

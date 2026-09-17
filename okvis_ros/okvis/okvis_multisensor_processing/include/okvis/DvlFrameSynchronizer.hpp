@@ -26,19 +26,19 @@
  *  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  *
- *  Created on: Nov 14, 2017
- *      Author: Sharmin Rahman
+ *  Created on: Jan, 2026
+ *      Author: CMB
  *
  *********************************************************************************/
 
 /**
- * @file DepthFrameSynchronizer.hpp
- * @brief Header file for the DepthFrameSynchronizer class.
- * @author Sharmin Rahman
+ * @file DvlFrameSynchronizer.hpp
+ * @brief Header file for the DvlFrameSynchronizer class.
+ * @author CMB
  */
 
-#ifndef INCLUDE_OKVIS_DEPTHFRAMESYNCHRONIZER_H_
-#define INCLUDE_OKVIS_DEPTHFRAMESYNCHRONIZER_H_
+#ifndef INCLUDE_OKVIS_DVLFRAMESYNCHRONIZER_H_
+#define INCLUDE_OKVIS_DVLFRAMESYNCHRONIZER_H_
 
 #include <atomic>
 #include <condition_variable>
@@ -49,40 +49,40 @@
 namespace okvis {
 
 /**
- * @brief This class is to safely notify different threads whether Depth measurements
+ * @brief This class is to safely notify different threads whether DVL measurements
  *        up to a timestamp (e.g. the one of a camera frame) have already been registered.
  */
-class DepthFrameSynchronizer {
+class DvlFrameSynchronizer {
  public:
   /// @brief Constructor.
-  DepthFrameSynchronizer();
+  DvlFrameSynchronizer();
   /// @brief Destructor.
-  ~DepthFrameSynchronizer();
+  ~DvlFrameSynchronizer();
 
   /**
-   * @brief Tell the synchronizer that a new Depth measurement has been registered.
-   * @param stamp Timestamp of the new Depth measurement.
+   * @brief Tell the synchronizer that a new DVL measurement has been registered.
+   * @param stamp Timestamp of the new DVL measurement.
    */
-  void gotDepthData(const okvis::Time& stamp);
+  void gotDvlData(const okvis::Time& stamp);
 
   /**
-   * @brief Wait until a Depth measurement with a timestamp equal or newer to the supplied one is registered.
-   * @param frame_stamp Timestamp until you want to have Depth measurements for.
+   * @brief Wait until a DVL measurement with a timestamp equal or newer to the supplied one is registered.
+   * @param frame_stamp Timestamp until you want to have DVL measurements for.
    * @return False if a shutdown signal has been received. Otherwise true.
    */
-  bool waitForUpToDateDepthData(const okvis::Time& frame_stamp);
+  bool waitForUpToDateDvlData(const okvis::Time& frame_stamp);
 
   /// @brief Tell the synchronizer to shutdown. This will notify all waiting threads to wake up.
   void shutdown();
 
  private:
-  okvis::Time newestDepthDataStamp_;  ///< Newest Depth data timestamp.
-  okvis::Time depthDataNeededUntil_;  ///< A thread is waiting for Depth data newer or equal to this timestamp.
-  std::condition_variable gotNeededDepthData_;  ///< Condition variable for waiting and notyfing.
+  okvis::Time newestDvlDataStamp_;  ///< Newest Depth data timestamp.
+  okvis::Time dvlDataNeededUntil_;  ///< A thread is waiting for Depth data newer or equal to this timestamp.
+  std::condition_variable gotNeededDvlData_;  ///< Condition variable for waiting and notyfing.
   std::mutex mutex_;                            ///< Mutex.
   std::atomic_bool shutdown_;                   ///< True if shutdown() was called.
 };
 
 } /* namespace okvis */
 
-#endif /* INCLUDE_OKVIS_DEPTHFRAMESYNCHRONIZER_H_ */
+#endif /* INCLUDE_OKVIS_DVLFRAMESYNCHRONIZER_H_ */

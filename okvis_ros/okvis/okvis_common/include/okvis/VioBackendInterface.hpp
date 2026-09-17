@@ -119,7 +119,9 @@ class VioBackendInterface {
                          bool asKeyframe,
                          const okvis::SonarMeasurementDeque& sonarMeasurements = {}, /* @Sharmin */
                          const okvis::DepthMeasurementDeque& depthMeasurements = {},
-                         double firstDepth = 0.0) = 0;
+                         double firstDepth = 0.0,
+                         const okvis::DVLMeasurementDeque& dvlMeasurements = {},
+                         const okvis::ThreeDSonarOdomMeasurementDeque& threeDsonarOdomMeasurements = {}) = 0;  /* @CMB */
 
   /**
    * @brief Add a landmark.

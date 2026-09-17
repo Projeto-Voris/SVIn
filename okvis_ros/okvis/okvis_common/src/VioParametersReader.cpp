@@ -41,6 +41,7 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <iomanip>
 #include <memory>
 #include <okvis/VioParametersReader.hpp>
 #include <okvis/cameras/EquidistantDistortion.hpp>
@@ -276,6 +277,12 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
   success = parseBoolean(file["isDepthUsed"], vioParameters_.sensorList.isDepthUsed);
   OKVIS_ASSERT_TRUE(Exception, success, "'isDepthUsed' parameter missing in configuration file.");
 
+  success = parseBoolean(file["isDVLUsed"], vioParameters_.sensorList.isDVLUsed);
+  OKVIS_ASSERT_TRUE(Exception, success, "'isDVLUsed' parameter missing in configuration file.");
+
+  success = parseBoolean(file["is3DSonarOdomUsed"], vioParameters_.sensorList.is3DSonarOdomUsed);
+  OKVIS_ASSERT_TRUE(Exception, success, "'is3DSonarOdomUsed' parameter missing in configuration file.");
+
   if (file["histogramMethod"].isString()) {
     std::string histogram_method = static_cast<std::string>(file["histogramMethod"]);
     if (histogram_method == "NONE" || histogram_method == "none") {
@@ -320,7 +327,124 @@ void VioParametersReader::readConfigFile(const std::string& filename) {
     ss << vioParameters_.sonar.T_SSo.T();
     LOG(INFO) << "Sonar with transformation T_SSo=\n" << ss.str();
   }
+
+  // depth sensor parameters
+  if (vioParameters_.sensorList.isDepthUsed) {
+    cv::FileNode T_SD_ = file["depth_params"]["T_SD"];
+    OKVIS_ASSERT_TRUE(
+        Exception, T_SD_.isSeq(), "'T_SD' parameter missing in the configuration file or in the wrong format.")
+
+    Eigen::Matrix4d T_SD_e;
+    T_SD_e << T_SD_[0], T_SD_[1], T_SD_[2], T_SD_[3], T_SD_[4], T_SD_[5], T_SD_[6], T_SD_[7], T_SD_[8],
+        T_SD_[9], T_SD_[10], T_SD_[11], T_SD_[12], T_SD_[13], T_SD_[14], T_SD_[15];
+
+    vioParameters_.depth.T_SD = okvis::kinematics::Transformation(T_SD_e);
+    std::stringstream ss;
+    ss << vioParameters_.depth.T_SD.T();
+    LOG(INFO) << "Depth sensor with transformation T_SD=\n" << ss.str();
+    
+    // Read sigma_depth
+    cv::FileNode sigma_depth_node = file["depth_params"]["sigma_depth"];
+    if (!sigma_depth_node.empty()) {
+      vioParameters_.depth.sigma_depth = sigma_depth_node;
+      LOG(INFO) << "Depth sensor sigma_depth: " << vioParameters_.depth.sigma_depth << " m";
+    } else {
+      vioParameters_.depth.sigma_depth = 0.001;  // Default value
+      LOG(WARNING) << "sigma_depth not found in config, using default: 0.1 m";
+    }
+
+    // Read depth_scaling
+    cv::FileNode depth_scaling_node = file["depth_params"]["depth_scaling"];
+    if (!depth_scaling_node.empty()) {
+      vioParameters_.depth.depth_scaling = depth_scaling_node;
+      LOG(INFO) << "Depth sensor depth_scaling: " << vioParameters_.depth.depth_scaling;
+    } else {
+      vioParameters_.depth.depth_scaling = 1.0;  // No scaling by default
+      LOG(WARNING) << "depth_scaling not found in config, using default: 1.0";
+    }
+  }
   // *****  End Sharmin: Additional config ******//
+
+  // dvl sensor parameters
+  if (vioParameters_.sensorList.isDVLUsed) {
+
+    cv::FileNode T_SV_ = file["dvl_params"]["T_SV"];
+    OKVIS_ASSERT_TRUE(
+        Exception, T_SV_.isSeq(), "'T_SV' parameter missing in the configuration file or in the wrong format.")
+
+    Eigen::Matrix4d T_SV_e;
+    T_SV_e << T_SV_[0], T_SV_[1], T_SV_[2], T_SV_[3], T_SV_[4], T_SV_[5], T_SV_[6], T_SV_[7], T_SV_[8],
+        T_SV_[9], T_SV_[10], T_SV_[11], T_SV_[12], T_SV_[13], T_SV_[14], T_SV_[15];
+
+    vioParameters_.dvl.T_SV = okvis::kinematics::Transformation(T_SV_e);
+    std::stringstream ss;
+    ss << vioParameters_.dvl.T_SV.T();
+    LOG(INFO) << "DVL sensor with transformation T_SV=\n" << ss.str();
+    
+    // Read noise_multiplier (covariance scaling factor)
+    cv::FileNode noise_multiplier_node = file["dvl_params"]["noise_multiplier"];
+    if (!noise_multiplier_node.empty()) {
+      vioParameters_.dvl.noise_multiplier = noise_multiplier_node;
+      LOG(INFO) << "DVL noise_multiplier: " << std::setprecision(6) << std::fixed 
+                << vioParameters_.dvl.noise_multiplier << " (covariance scale factor)";
+    } else {
+      vioParameters_.dvl.noise_multiplier = 1.0;  // Default: no scaling
+      LOG(WARNING) << "DVL noise_multiplier not found in config, using default: 1.0 (no scaling)";
+    }
+
+    // Read time_threshold (maximum time difference for valid DVL measurement)
+    cv::FileNode time_threshold_node = file["dvl_params"]["time_threshold"];
+    if (!time_threshold_node.empty()) {
+      vioParameters_.dvl.time_threshold = time_threshold_node;
+      LOG(INFO) << "DVL time_threshold: " << std::setprecision(6) << std::fixed 
+                << vioParameters_.dvl.time_threshold << " s";
+    } else {
+      vioParameters_.dvl.time_threshold = 0.05;  // Default: 50ms
+      LOG(WARNING) << "DVL time_threshold not found in config, using default: 0.05 s";
+    }
+
+  }
+
+  // 3D sonar odometry parameters
+  if (vioParameters_.sensorList.is3DSonarOdomUsed) {
+  
+    cv::FileNode T_SL_ = file["3dS_params"]["T_SL"];
+    OKVIS_ASSERT_TRUE(
+    Exception, T_SL_.isSeq(), "'T_SL' parameter missing in the configuration file or in the wrong format.")
+
+    Eigen::Matrix4d T_SL_e;
+    T_SL_e << T_SL_[0],  T_SL_[1],  T_SL_[2],  T_SL_[3],
+                T_SL_[4],  T_SL_[5],  T_SL_[6],  T_SL_[7],
+                T_SL_[8],  T_SL_[9],  T_SL_[10], T_SL_[11],
+                T_SL_[12], T_SL_[13], T_SL_[14], T_SL_[15];
+
+    vioParameters_.threeDsonarOdom.T_SL = okvis::kinematics::Transformation(T_SL_e);
+    std::stringstream ss;
+    ss << vioParameters_.threeDsonarOdom.T_SL.T();
+    LOG(INFO) << "3D sonar odometry with transformation T_SL=\n" << ss.str();
+
+    // Read sigma_position
+    cv::FileNode sigma_position_node = file["sonar3d_params"]["sigma_position"];
+    if (!sigma_position_node.empty()) {
+      vioParameters_.threeDsonarOdom.sigma_position = static_cast<double>(sigma_position_node);
+      LOG(INFO) << "3D Sonar sigma_position: " << std::setprecision(6) << std::fixed
+                << vioParameters_.threeDsonarOdom.sigma_position << " m";
+    } else {
+      vioParameters_.threeDsonarOdom.sigma_position = 0.01;  // Default value
+      LOG(WARNING) << "3D Sonar sigma_position not found in config, using default: 0.01 m";
+    }
+    // Read sigma_orientation
+    cv::FileNode sigma_orientation_node = file["sonar3d_params"]["sigma_orientation"];
+    if (!sigma_orientation_node.empty()) {
+      vioParameters_.threeDsonarOdom.sigma_orientation = static_cast<double>(sigma_orientation_node);
+      LOG(INFO) << "3D Sonar sigma_orientation: " << std::setprecision(6) << std::fixed
+                << vioParameters_.threeDsonarOdom.sigma_orientation << " rad";
+    } else {
+      vioParameters_.threeDsonarOdom.sigma_orientation = 0.001;  // Default value
+      LOG(WARNING) << "3D Sonar sigma_orientation not found in config, using default: 0.001 rad";
+    }
+
+  }
 
   // Hunter: Resetable pose parameters
   success = parseBoolean(file["isResetable"], vioParameters_.resetableParams.isResetable);

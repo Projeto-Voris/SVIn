@@ -107,7 +107,7 @@ struct DepthCameraData {
 };
 
 /// @Sharmin
-/// \brief Sonar point measurement.
+/// \brief Pipe Sonar point measurement.
 struct SonarReading {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   double range;    ///< range measurement
@@ -119,6 +119,57 @@ struct SonarReading {
 struct DepthReading {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   double depth;  ///< depth measurement (in meter)
+};
+
+/// \brief DVL measurement.
+struct DVLReading {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  Eigen::Vector3d velocity;  ///< velocity measurement in body frame (in m/s)
+  Eigen::Vector3d covariance;  ///< covariance of the velocity measurement (in m/s^2)
+  double fom;               ///< figure of merit (quality of the measurement)
+  double altitude;         ///< altitude measurement (in meter)
+  bool velocity_valid; ///< validity of velocity measurement
+
+  // // DVLBeam - velocity measurements from individual beams
+  // double velocityBeam1;  ///< velocity measurement from beam 1 (in m/s)
+  // double velocityBeam2;  ///< velocity measurement from beam 2 (in m/s)
+  // double velocityBeam3;  ///< velocity measurement from beam 3 (in m/s)
+  // double velocityBeam4;  ///< velocity measurement from beam 4 (in m/s)
+
+  // // DVL distance - distance measurements from individual beams
+  // double distanceBeam1;  ///< distance measurement from beam 1 (in meter)
+  // double distanceBeam2;  ///< distance measurement from beam 2 (in meter)
+  // double distanceBeam3;  ///< distance measurement from beam 3 (in meter)
+  // double distanceBeam4;  ///< distance measurement from beam 4 (in meter) 
+
+  // // RSSI - signal strength from individual beams
+  // double rssiBeam1;  ///< signal strength from beam 1
+  // double rssiBeam2;  ///< signal strength from beam 2
+  // double rssiBeam3;  ///< signal strength from beam 3
+  // double rssiBeam4;  ///< signal strength from beam 4
+
+  // // NSD - normalized standard deviation from individual beams
+  // double nsdBeam1;  ///< normalized standard deviation from beam 1
+  // double nsdBeam2;  ///< normalized standard deviation from beam 2
+  // double nsdBeam3;  ///< normalized standard deviation from beam 3
+  // double nsdBeam4;  ///< normalized standard deviation from beam 4
+
+  // // Valid - validity of individual beams
+  // bool validBeam1;  ///< validity of beam 1
+  // bool validBeam2;  ///< validity of beam 2
+  // bool validBeam3;  ///< validity of beam 3
+  // bool validBeam4;  ///< validity of beam 4
+
+};
+
+/// \brief 3D Sonar Odometry measurement.
+/// Covariance follows nav_msgs/Odometry convention:
+/// 6x6 matrix [x,y,z, roll, pitch, yaw]
+struct ThreeDSonarOdomReading{
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  Eigen::Quaterniond orientation; ///< Orientation quaternion (qx, qy, qz, qw)
+  Eigen::Vector3d position; ///< Position measurement [m]
+  Eigen::Matrix<double, 6,6> covariance; ///< Pose covariance [x,y,z,rx,ry,rz] 6x6
 };
 
 struct RelocReading {
@@ -202,6 +253,12 @@ typedef std::deque<DepthMeasurement, Eigen::aligned_allocator<DepthMeasurement> 
 
 typedef Measurement<SonarReading> SonarMeasurement;                                                       /// @Sharmin
 typedef std::deque<SonarMeasurement, Eigen::aligned_allocator<SonarMeasurement> > SonarMeasurementDeque;  /// @Sharmin
+
+typedef Measurement<DVLReading> DVLMeasurement;                                                       /// @CMB
+typedef std::deque<DVLMeasurement, Eigen::aligned_allocator<DVLMeasurement> > DVLMeasurementDeque;  /// @CMB
+
+typedef Measurement<ThreeDSonarOdomReading> ThreeDSonarOdomMeasurement;                                                       /// @CMB
+typedef std::deque<ThreeDSonarOdomMeasurement, Eigen::aligned_allocator<ThreeDSonarOdomMeasurement> > ThreeDSonarOdomMeasurementDeque;  /// @CMB
 
 typedef Measurement<PositionReading> PositionMeasurement;
 typedef std::deque<PositionMeasurement, Eigen::aligned_allocator<PositionMeasurement> > PositionMeasurementDeque;
