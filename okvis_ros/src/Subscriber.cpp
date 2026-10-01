@@ -79,6 +79,12 @@ Subscriber::Subscriber(std::shared_ptr<rclcpp::Node> node,
   // Set up IMU callback
   subImu_ = node->create_subscription<sensor_msgs::msg::Imu>("imu", 1000, std::bind(&Subscriber::imuCallback, this, std::placeholders::_1));
 
+  if (vioParameters_.sensorList.isSonarUsed) {
+  subSonarRange_ = node->create_subscription<sensor_msgs::msg::PointCloud2>(
+      "/sonar_link/sensor/sonar/points", rclcpp::SensorDataQoS(),
+      std::bind(&Subscriber::sonarCallback, this, std::placeholders::_1));
+  }
+
   tfBuffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
   tfListener_ = std::make_shared<tf2_ros::TransformListener>(*tfBuffer_);
   imgTransport_ = 0;
@@ -243,28 +249,31 @@ void Subscriber::watchdogTick() {
   }
 }
 
-// @Sharmin
-// void Subscriber::sonarCallback(const imagenex831l::ProcessedRange::ConstPtr& msg) {
-//   double rangeResolution = msg->max_range / msg->intensity.size();
-//   int max = 0;
-//   int maxIndex = 0;
 
-//   // @Sharmin: discarding as range was set higher (which introduced some noisy data) during data collection
-//   for (unsigned int i = 0; i < msg->intensity.size() - 100; i++) {
-//     if (msg->intensity[i] > max) {
-//       max = msg->intensity[i];
-//       maxIndex = i;
-//     }
-//   }
+// Sonar Callback
+void Subscriber::sonarCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) {
+  constexpr double kMinRange = 0.2;   // ajuste ao seu sonar
+  constexpr double kMaxRange = 4.5;   // mesmo limite do código original
 
-//   double range = (maxIndex + 1) * rangeResolution;
-//   double heading = (msg->head_position * M_PI) / 180;
+  double bestRange = std::numeric_limits<double>::infinity();
+  double bestHeading = 0.0;
 
-//   // No magic no!! within 4.5 meter
-//   if (range < 4.5 && max > 10) {
-//     vioInterface_->addSonarMeasurement(okvis::Time(msg->header.stamp.sec, msg->header.stamp.nsec), range, heading);
-//   }
-// }
+  sensor_msgs::PointCloud2ConstIterator<float> ix(*msg, "x"), iy(*msg, "y"), iz(*msg, "z");
+  for (; ix != ix.end(); ++ix, ++iy, ++iz) {
+    if (!std::isfinite(*ix) || !std::isfinite(*iy) || !std::isfinite(*iz)) continue;
+    const double r = std::sqrt((*ix) * (*ix) + (*iy) * (*iy) + (*iz) * (*iz));
+    if (r < kMinRange || r > kMaxRange) continue;
+    if (r < bestRange) {
+      bestRange = r;
+      bestHeading = std::atan2(*iy, *ix);  // azimute em radianos
+    }
+  }
+  if (!std::isfinite(bestRange)) return;
+
+  vioInterface_->addSonarMeasurement(
+      okvis::Time(msg->header.stamp.sec, msg->header.stamp.nanosec), bestRange, bestHeading);
+}
+
 
 const cv::Mat Subscriber::readRosImage(const sensor_msgs::msg::Image::ConstSharedPtr img_msg) const {
   CHECK(img_msg);

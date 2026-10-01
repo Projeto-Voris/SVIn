@@ -42,6 +42,9 @@
 #define INCLUDE_OKVIS_SUBSCRIBER_HPP_
 
 /// @Sharmin
+#include <sensor_msgs/point_cloud2_iterator.hpp>
+#include <cmath>
+#include <limits>
 #include <boost/shared_ptr.hpp>
 #include <deque>
 #include <image_transport/image_transport.hpp>
@@ -78,6 +81,8 @@
 #include <opencv2/opencv.hpp>
 #include <sensor_msgs/msg/point_cloud.hpp>  // for subscribing /pose_graph/match_points
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/point_cloud2_iterator.hpp>
 
 /// \brief okvis Main namespace of this package.
 namespace okvis {
@@ -131,10 +136,19 @@ class Subscriber {
   /// @brief The Relocalization callback. @Sharmin
   void relocCallback(const sensor_msgs::msg::PointCloud::SharedPtr points_msg);
 
+
+
+
   /// @brief The Sonar Range callback. @Sharmin
   std::shared_ptr<tf2_ros::Buffer> tfBuffer_;
   std::shared_ptr<tf2_ros::TransformListener> tfListener_;
+  
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr subSonarRange_;
   // void sonarCallback(const imagenex831l::msg::ProcessedRange::ConstPtr& msg);
+  void sonarCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg);
+
+
+
 
   std::shared_ptr<rclcpp::Node> node_;                             ///< The node handle.
   std::unique_ptr<image_transport::ImageTransport> imgTransport_;  ///< The image transporter.
@@ -142,8 +156,8 @@ class Subscriber {
   unsigned int imgLeftCounter;                                     // @Sharmin
   unsigned int imgRightCounter;                                    // @Sharmin
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr subImu_;  ///< The IMU message subscriber.
-  // ros::Subscriber subSonarRange_;                                ///< The Sonar Range Subscriber @Sharmin
-  // ros::Subscriber subDepth_;                                     ///< The Depth Subscriber @Sharmin
+  // ros::Subscriber subSonarRange_;                               ///< The Sonar Range Subscriber @Sharmin
+  // ros::Subscriber subDepth_;                                    ///< The Depth Subscriber @Sharmin
   rclcpp::Subscription<sensor_msgs::msg::PointCloud>::SharedPtr
       subReloPoints_;        ///< The Relocalization Points Subscriber from pose_graph @Sharmin
   cv::Ptr<cv::CLAHE> clahe;  /// Sharmin
